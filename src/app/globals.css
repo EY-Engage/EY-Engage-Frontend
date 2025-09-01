@@ -1,0 +1,367 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Couleurs principales EY */
+    --ey-yellow: 255 230 0;
+    --ey-black: 26 26 36;
+    --ey-white: 255 255 255;
+    --ey-light-gray: 246 246 250;
+    --ey-dark-gray: 231 231 234;
+    --ey-accent-blue: 78 190 235;
+    --ey-red: 220 38 38;
+    --ey-green: 16 185 129;
+    --ey-purple: 110 37 133;
+    --ey-orange: 249 115 22;
+    
+    /* Variables de thème */
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 52 100% 50%;
+    --primary-foreground: 240 10% 3.9%;
+    --secondary: 240 10% 3.9%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 193 74% 59%;
+    --accent-foreground: 240 10% 3.9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 52 100% 50%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 52 100% 50%;
+    --primary-foreground: 240 10% 3.9%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 193 74% 59%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 52 100% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold text-ey-black;
+  }
+  
+  h1 { @apply text-ey-4xl; }
+  h2 { @apply text-ey-3xl; }
+  h3 { @apply text-ey-2xl; }
+  h4 { @apply text-ey-xl; }
+  h5 { @apply text-ey-lg; }
+  h6 { @apply text-ey-base; }
+}
+
+@layer components {
+  /* Boutons EY standardisés */
+  .btn-ey-primary {
+    @apply bg-ey-yellow text-ey-black font-semibold px-6 py-3 rounded-ey-lg 
+           hover:bg-ey-yellow-dark focus:outline-none focus:ring-4 focus:ring-ey-yellow/30 
+           transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100
+           shadow-ey-md hover:shadow-ey-lg;
+  }
+  
+  .btn-ey-secondary {
+    @apply bg-ey-black text-ey-white font-semibold px-6 py-3 rounded-ey-lg 
+           hover:bg-ey-gray-800 focus:outline-none focus:ring-4 focus:ring-ey-black/30 
+           transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100
+           shadow-ey-md hover:shadow-ey-lg;
+  }
+  
+  .btn-ey-tertiary {
+    @apply bg-ey-accent-blue text-ey-white font-semibold px-6 py-3 rounded-ey-lg 
+           hover:bg-ey-accent-blue/90 focus:outline-none focus:ring-4 focus:ring-ey-accent-blue/30 
+           transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100
+           shadow-ey-md hover:shadow-ey-lg;
+  }
+  
+  .btn-ey-outline {
+    @apply border-2 border-ey-yellow text-ey-black font-semibold px-6 py-3 rounded-ey-lg 
+           hover:bg-ey-yellow hover:text-ey-black focus:outline-none focus:ring-4 focus:ring-ey-yellow/30 
+           transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100;
+  }
+  
+  .btn-ey-danger {
+    @apply bg-ey-red text-ey-white font-semibold px-6 py-3 rounded-ey-lg 
+           hover:bg-ey-red/90 focus:outline-none focus:ring-4 focus:ring-ey-red/30 
+           transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100
+           shadow-ey-md hover:shadow-ey-lg;
+  }
+  
+  .btn-ey-success {
+    @apply bg-ey-green text-ey-white font-semibold px-6 py-3 rounded-ey-lg 
+           hover:bg-ey-green/90 focus:outline-none focus:ring-4 focus:ring-ey-green/30 
+           transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100
+           shadow-ey-md hover:shadow-ey-lg;
+  }
+  
+  /* Champs de formulaire EY */
+  .input-ey {
+    @apply w-full px-4 py-3 border-2 border-ey-gray-200 rounded-ey-lg 
+           bg-ey-white text-ey-black placeholder-ey-gray-400
+           focus:border-ey-yellow focus:outline-none focus:ring-4 focus:ring-ey-yellow/20 
+           transition-all duration-200
+           disabled:bg-ey-gray-100 disabled:cursor-not-allowed;
+  }
+  
+  .input-ey-error {
+    @apply border-ey-red focus:border-ey-red focus:ring-ey-red/20;
+  }
+  
+  .input-ey-success {
+    @apply border-ey-green focus:border-ey-green focus:ring-ey-green/20;
+  }
+  
+  .select-ey {
+    @apply w-full px-4 py-3 border-2 border-ey-gray-200 rounded-ey-lg 
+           bg-ey-white text-ey-black
+           focus:border-ey-yellow focus:outline-none focus:ring-4 focus:ring-ey-yellow/20 
+           transition-all duration-200 cursor-pointer
+           disabled:bg-ey-gray-100 disabled:cursor-not-allowed;
+  }
+  
+  .textarea-ey {
+    @apply w-full px-4 py-3 border-2 border-ey-gray-200 rounded-ey-lg 
+           bg-ey-white text-ey-black placeholder-ey-gray-400 resize-none
+           focus:border-ey-yellow focus:outline-none focus:ring-4 focus:ring-ey-yellow/20 
+           transition-all duration-200
+           disabled:bg-ey-gray-100 disabled:cursor-not-allowed;
+  }
+  
+  /* Cartes EY */
+  .card-ey {
+    @apply bg-ey-white rounded-ey-xl shadow-ey-lg border border-ey-gray-200 
+           hover:shadow-ey-xl transition-shadow duration-200 overflow-hidden;
+  }
+  
+  .card-ey-dark {
+    @apply bg-ey-black text-ey-white rounded-ey-xl shadow-ey-lg 
+           hover:shadow-ey-xl transition-shadow duration-200 overflow-hidden;
+  }
+  
+  /* Badges EY */
+  .badge-ey-primary {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-ey-sm font-medium 
+           bg-ey-yellow text-ey-black;
+  }
+  
+  .badge-ey-secondary {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-ey-sm font-medium 
+           bg-ey-black text-ey-white;
+  }
+  
+  .badge-ey-success {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-ey-sm font-medium 
+           bg-ey-green/10 text-ey-green border border-ey-green/20;
+  }
+  
+  .badge-ey-danger {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-ey-sm font-medium 
+           bg-ey-red/10 text-ey-red border border-ey-red/20;
+  }
+  
+  .badge-ey-info {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-ey-sm font-medium 
+           bg-ey-accent-blue/10 text-ey-accent-blue border border-ey-accent-blue/20;
+  }
+  
+  .badge-ey-warning {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-ey-sm font-medium 
+           bg-ey-orange/10 text-ey-orange border border-ey-orange/20;
+  }
+  
+  /* Tables EY */
+  .table-ey {
+    @apply w-full bg-ey-white rounded-ey-lg overflow-hidden shadow-ey-md;
+  }
+  
+  .table-ey thead {
+    @apply bg-ey-black text-ey-white;
+  }
+  
+  .table-ey th {
+    @apply px-6 py-4 text-left text-ey-sm font-semibold uppercase tracking-wider;
+  }
+  
+  .table-ey tbody {
+    @apply divide-y divide-ey-gray-200;
+  }
+  
+  .table-ey td {
+    @apply px-6 py-4 text-ey-sm text-ey-gray-700;
+  }
+  
+  .table-ey tbody tr {
+    @apply hover:bg-ey-yellow/5 transition-colors duration-150;
+  }
+  
+  /* Sidebar EY */
+  .sidebar-ey {
+    @apply bg-ey-black text-ey-white h-full;
+  }
+  
+  .sidebar-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-ey-lg text-ey-white/80 
+           hover:bg-ey-yellow hover:text-ey-black transition-all duration-200
+           font-medium;
+  }
+  
+  .sidebar-item-active {
+    @apply bg-ey-yellow text-ey-black font-semibold;
+  }
+  
+  /* Modals EY */
+  .modal-ey {
+    @apply fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm;
+  }
+  
+  .modal-content-ey {
+    @apply bg-ey-white rounded-ey-xl shadow-ey-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto;
+  }
+  
+  .modal-header-ey {
+    @apply px-6 py-4 border-b border-ey-gray-200 flex items-center justify-between;
+  }
+  
+  .modal-body-ey {
+    @apply px-6 py-4;
+  }
+  
+  .modal-footer-ey {
+    @apply px-6 py-4 border-t border-ey-gray-200 flex items-center justify-end gap-3;
+  }
+  
+  /* Alerts EY */
+  .alert-ey-success {
+    @apply bg-ey-green/10 border-l-4 border-ey-green text-ey-green p-4 rounded-ey-lg;
+  }
+  
+  .alert-ey-error {
+    @apply bg-ey-red/10 border-l-4 border-ey-red text-ey-red p-4 rounded-ey-lg;
+  }
+  
+  .alert-ey-warning {
+    @apply bg-ey-orange/10 border-l-4 border-ey-orange text-ey-orange p-4 rounded-ey-lg;
+  }
+  
+  .alert-ey-info {
+    @apply bg-ey-accent-blue/10 border-l-4 border-ey-accent-blue text-ey-accent-blue p-4 rounded-ey-lg;
+  }
+  
+  /* Loading states */
+  .loading-spinner-ey {
+    @apply animate-spin rounded-full h-8 w-8 border-b-2 border-ey-yellow;
+  }
+  
+  /* Tooltips */
+  .tooltip-ey {
+    @apply absolute z-50 px-3 py-2 text-ey-sm font-medium text-ey-white bg-ey-black 
+           rounded-ey-md shadow-ey-lg pointer-events-none opacity-0 transition-opacity duration-200;
+  }
+  
+  .tooltip-ey-visible {
+    @apply opacity-100;
+  }
+  
+}
+
+@layer utilities {
+  /* Animations personnalisées */
+  .animate-slide-in {
+    animation: slide-in 0.3s ease-out;
+  }
+  
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out;
+  }
+  
+  /* Utilities pour scrollbar personnalisée */
+  .scrollbar-ey::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  .scrollbar-ey::-webkit-scrollbar-track {
+    @apply bg-ey-gray-100 rounded-full;
+  }
+  
+  .scrollbar-ey::-webkit-scrollbar-thumb {
+    @apply bg-ey-yellow rounded-full hover:bg-ey-yellow-dark;
+  }
+  
+  /* Utilities pour focus visible */
+  .focus-visible-ey:focus-visible {
+    @apply outline-none ring-4 ring-ey-yellow/30 ring-offset-2 ring-offset-ey-white;
+  }
+  
+  /* Gradients EY */
+  .gradient-ey-primary {
+    @apply bg-gradient-to-r from-ey-yellow to-ey-yellow-dark;
+  }
+  
+  .gradient-ey-secondary {
+    @apply bg-gradient-to-r from-ey-black to-ey-gray-800;
+  }
+  
+  .gradient-ey-accent {
+    @apply bg-gradient-to-r from-ey-accent-blue to-ey-purple;
+  }
+}
+
+/* Transitions globales */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  body {
+    @apply bg-white text-black;
+  }
+}
