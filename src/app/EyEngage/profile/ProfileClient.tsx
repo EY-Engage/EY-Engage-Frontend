@@ -17,12 +17,11 @@ import {
   updatePassword, 
   updateUserProfilePicture 
 } from '@/lib/services/userService';
-import { UserProfileData, UserProfileEvents, FollowCounts, CreateFollowDto } from '@/types/types';
+import { UserProfileData, UserProfileEvents } from '@/types/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -51,16 +50,6 @@ export default function ProfileClient({ user, eventsData, isOwnProfile }: Profil
   const [pictureLoading, setPictureLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   
-  // États pour les follows
-  const [followCounts, setFollowCounts] = useState<FollowCounts>({ followersCount: 0, followingCount: 0 });
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [followLoading, setFollowLoading] = useState(false);
-  const [followersModal, setFollowersModal] = useState(false);
-  const [followingModal, setFollowingModal] = useState(false);
-  const [followers, setFollowers] = useState<UserDto[]>([]);
-  const [following, setFollowing] = useState<UserDto[]>([]);
-  const [modalLoading, setModalLoading] = useState(false);
-  
   // États des messages
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -87,218 +76,6 @@ export default function ProfileClient({ user, eventsData, isOwnProfile }: Profil
   
   const { errors: passwordErrors, validate: validatePasswordForm } = 
     useFormValidation(ValidationSchemas.changePassword);
-
-  // Convertir FollowDto en UserDto - CORRECTION : utilisation correcte des données
-  const followToUserDto = (follow: any, isFollower: boolean): UserDto => {
-    return {
-      id: isFollower ? follow.followerId : follow.followedId,
-      fullName: isFollower ? follow.followerName : follow.followedName,
-      profilePicture: isFollower ? follow.followerProfilePicture : follow.followedProfilePicture,
-      department: isFollower ? follow.followerDepartment : follow.followedDepartment,
-      email: '',
-      phoneNumber: '',
-      fonction: '',
-      sector: '',
-      roles: [],
-      isActive: true,
-      isFirstLogin: false,
-      createdAt: follow.createdAt,
-      updatedAt: follow.createdAt,
-    };
-  };
-
-  // Charger les données de suivi - CORRIGÉ
-  const loadFollowData = async () => {
-    if (!user?.id) return;
-    
-    try {
-      // Charger les compteurs
-      const counts = await followService.getFollowCounts(user.id);
-      console.log('ProfileClient - compteurs chargés:', counts);
-      setFollowCounts(counts);
-      
-      // Vérifier si on suit cet utilisateur (seulement si ce n'est pas notre profil)
-      if (!isOwnProfile && currentUser?.id && currentUser.id !== user.id) {
-        const followStatus = await followService.isFollowing(user.id);
-        console.log('ProfileClient - statut de suivi:', followStatus);
-        setIsFollowing(followStatus.isFollowing);
-      }
-    } catch (error) {
-      console.error('Erreur chargement données follow:', error);
-      toast.error('Erreur lors du chargement des données de suivi');
-    }
-  };
-
-  // Charger les followers - CORRIGÉ
-  const loadFollowers = async () => {
-    if (!user?.id) return;
-    
-    try {
-      setModalLoading(true);
-      const followersData = await followService.getFollowers(user.id, 1, 50);
-      console.log('ProfileClient - followers chargés:', followersData);
-      
-      const followersUsers = followersData.followers.map(follow => 
-        followToUserDto(follow, true)
-      );
-      setFollowers(followersUsers);
-    } catch (error) {
-      console.error('Erreur chargement followers:', error);
-      toast.error('Erreur lors du chargement des abonnés');
-    } finally {
-      setModalLoading(false);
-    }
-  };
-
-  // Charger les following - CORRIGÉ
-  const loadFollowing = async () => {
-    if (!user?.id) return;
-    
-    try {
-      setModalLoading(true);
-      const followingData = await followService.getFollowing(user.id, 1, 50);
-      console.log('ProfileClient - following chargés:', followingData);
-      
-      const followingUsers = followingData.following.map(follow => 
-        followToUserDto(follow, false)
-      );
-      setFollowing(followingUsers);
-    } catch (error) {
-      console.error('Erreur chargement following:', error);
-      toast.error('Erreur lors du chargement des abonnements');
-    } finally {
-      setModalLoading(false);
-    }
-  };
-
-  // Ouvrir le modal des followers
-  const openFollowersModal = async () => {
-    setFollowersModal(true);
-    await loadFollowers();
-  };
-
-  // Ouvrir le modal des following
-  const openFollowingModal = async () => {
-    setFollowingModal(true);
-    await loadFollowing();
-  };
-
-  // Gérer le suivi/désuivi - CORRIGÉ avec validation complète
-  const handleFollowToggle = async (userId: string) => {
-    console.log('=== DÉBUT handleFollowToggle ===');
-    console.log('ProfileClient - handleFollowToggle userId:', userId);
-    console.log('ProfileClient - currentUser:', currentUser?.id);
-    console.log('ProfileClient - isOwnProfile:', isOwnProfile);
-    console.log('ProfileClient - isFollowing avant:', isFollowing);
-
-    // Validations de base
-    if (!currentUser?.id) {
-      toast.error('Vous devez être connecté pour suivre un utilisateur');
-      return;
-    }
-
-    if (isOwnProfile || currentUser.id === userId) {
-      toast.error('Vous ne pouvez pas vous suivre vous-même');
-      return;
-    }
-
-    if (!userId) {
-      toast.error('ID utilisateur invalide');
-      return;
-    }
-
-    setFollowLoading(true);
-    
-    try {
-      if (isFollowing) {
-        // Ne plus suivre
-        console.log('ProfileClient - Tentative de unfollow...');
-        const result = await followService.unfollowUser(userId);
-        console.log('ProfileClient - Unfollow réussi:', result);
-        
-        setIsFollowing(false);
-        setFollowCounts(prev => ({ 
-          ...prev, 
-          followersCount: Math.max(0, prev.followersCount - 1) 
-        }));
-        toast.success(`Vous ne suivez plus ${user.fullName}`);
-        
-      } else {
-        // Suivre
-        console.log('ProfileClient - Tentative de follow...');
-        const followDto: CreateFollowDto = { followedId: userId };
-        const result = await followService.followUser(followDto);
-        console.log('ProfileClient - Follow réussi:', result);
-        
-        setIsFollowing(true);
-        setFollowCounts(prev => ({ 
-          ...prev, 
-          followersCount: prev.followersCount + 1 
-        }));
-        toast.success(`Vous suivez maintenant ${user.fullName}`);
-      }
-      
-      // Recharger les données après un délai pour s'assurer de la cohérence
-      setTimeout(async () => {
-        await loadFollowData();
-      }, 1000);
-      
-    } catch (error: any) {
-      console.error('=== ERREUR handleFollowToggle ===');
-      console.error('ProfileClient - Erreur follow toggle:', error);
-      
-      // Gestion des erreurs spécifiques
-      let errorMessage = 'Erreur lors de l\'action';
-      
-      if (error.message) {
-        if (error.message.includes('déjà')) {
-          errorMessage = 'Vous suivez déjà cet utilisateur';
-        } else if (error.message.includes('non trouvé')) {
-          errorMessage = 'Utilisateur non trouvé';
-        } else {
-          errorMessage = error.message;
-        }
-      }
-      
-      toast.error(errorMessage);
-      
-      // Recharger les données en cas d'erreur pour éviter l'incohérence
-      await loadFollowData();
-      
-    } finally {
-      setFollowLoading(false);
-      console.log('=== FIN handleFollowToggle ===');
-    }
-  };
-
-  // Gérer le suivi/désuivi depuis le modal - CORRIGÉ
-  const handleModalFollowToggle = async (targetUser: UserDto) => {
-    if (!currentUser?.id || targetUser.id === currentUser.id) return;
-    
-    try {
-      const isCurrentlyFollowing = await followService.isFollowing(targetUser.id);
-      
-      if (isCurrentlyFollowing.isFollowing) {
-        await followService.unfollowUser(targetUser.id);
-        toast.success(`Vous ne suivez plus ${targetUser.fullName}`);
-      } else {
-        const followDto: CreateFollowDto = { followedId: targetUser.id };
-        await followService.followUser(followDto);
-        toast.success(`Vous suivez maintenant ${targetUser.fullName}`);
-      }
-      
-      // Recharger les données des modals
-      if (followersModal) await loadFollowers();
-      if (followingModal) await loadFollowing();
-      
-      // Recharger les compteurs
-      await loadFollowData();
-    } catch (error) {
-      console.error('Erreur follow toggle depuis modal:', error);
-      toast.error('Erreur lors de l\'action');
-    }
-  };
-
   // Calcul des statistiques au montage
   useEffect(() => {
     const totalEvents = eventsData.organizedEvents.length + eventsData.participatedEvents.length;
@@ -312,11 +89,6 @@ export default function ProfileClient({ user, eventsData, isOwnProfile }: Profil
     // Calcul du score d'accomplissement
     const achievements = Math.min(1000, (totalEvents * 50) + (approvedParticipations * 25) + (totalComments * 5));
     setAchievementScore(achievements);
-
-    // Charger les données de suivi
-    if (user?.id) {
-      loadFollowData();
-    }
   }, [user?.id, eventsData]);
 
   // Vérification des rôles
@@ -482,8 +254,6 @@ export default function ProfileClient({ user, eventsData, isOwnProfile }: Profil
         comments: eventsData.comments.length,
         engagementLevel: engagementLevel,
         achievementScore: achievementScore,
-        followersCount: followCounts.followersCount,
-        followingCount: followCounts.followingCount
       },
       createdAt: new Date().toISOString()
     };
@@ -653,38 +423,6 @@ export default function ProfileClient({ user, eventsData, isOwnProfile }: Profil
                   </Badge>
                 </div>
 
-                {/* Statistiques de suivi */}
-                <div className="flex justify-center lg:justify-start gap-6 mb-6">
-                  <button
-                    onClick={openFollowersModal}
-                    className="text-center hover:bg-ey-gray-100 p-2 rounded-ey-lg transition-colors"
-                  >
-                    <div className="text-xl font-bold text-ey-black">
-                      {followCounts.followersCount}
-                    </div>
-                    <div className="text-sm text-ey-gray-600">
-                      Abonné{followCounts.followersCount > 1 ? 's' : ''}
-                    </div>
-                  </button>
-                  
-                  <button
-                    onClick={openFollowingModal}
-                    className="text-center hover:bg-ey-gray-100 p-2 rounded-ey-lg transition-colors"
-                  >
-                    <div className="text-xl font-bold text-ey-black">
-                      {followCounts.followingCount}
-                    </div>
-                    <div className="text-sm text-ey-gray-600">Abonnements</div>
-                  </button>
-                  
-                  <div className="text-center p-2">
-                    <div className="text-xl font-bold text-ey-black">
-                      {eventsData.organizedEvents.length + eventsData.participatedEvents.length}
-                    </div>
-                    <div className="text-sm text-ey-gray-600">Événements</div>
-                  </div>
-                </div>
-
                 {/* Informations de contact */}
                 <div className="space-y-3 mb-6">
                   <div className="flex items-center justify-center lg:justify-start gap-3 text-ey-gray-700">
@@ -728,42 +466,6 @@ export default function ProfileClient({ user, eventsData, isOwnProfile }: Profil
                     </>
                   ) : (
                     <>
-                      {/* Bouton de suivi */}
-                      <Button
-                        onClick={() => handleFollowToggle(user.id)}
-                        disabled={followLoading}
-                        className={`min-w-36 ${
-                          isFollowing 
-                            ? 'btn-ey-secondary hover:btn-ey-danger hover:text-ey-white' 
-                            : 'btn-ey-primary'
-                        }`}
-                      >
-                        {followLoading ? (
-                          <>
-                            <RefreshCw size={16} className="mr-2 animate-spin" />
-                            {isFollowing ? 'Désabonnement...' : 'Abonnement...'}
-                          </>
-                        ) : isFollowing ? (
-                          <>
-                            <UserCheck size={16} className="mr-2" />
-                            Suivi
-                          </>
-                        ) : (
-                          <>
-                            <UserPlus size={16} className="mr-2" />
-                            Suivre
-                          </>
-                        )}
-                      </Button>
-                      
-                      {/* Bouton message */}
-                      <Button
-                        variant="outline"
-                        className="btn-ey-outline"
-                      >
-                        <MessageSquare size={16} className="mr-2" />
-                        Message
-                      </Button>
                       
                       {/* Badge profil public */}
                       <Badge className="badge-ey-info">
@@ -943,57 +645,6 @@ export default function ProfileClient({ user, eventsData, isOwnProfile }: Profil
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-6">
-                    
-                    {/* Compteurs principaux */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="text-center p-4 bg-ey-green/10 rounded-ey-lg">
-                        <div className="text-2xl font-bold text-ey-green">
-                          {followCounts.followersCount}
-                        </div>
-                        <div className="text-sm text-ey-gray-600">Abonnés</div>
-                      </div>
-                      
-                      <div className="text-center p-4 bg-ey-accent-blue/10 rounded-ey-lg">
-                        <div className="text-2xl font-bold text-ey-accent-blue">
-                          {followCounts.followingCount}
-                        </div>
-                        <div className="text-sm text-ey-gray-600">Abonnements</div>
-                      </div>
-                    </div>
-
-                    {/* Ratio d'engagement */}
-                    <div className="p-4 bg-ey-yellow/10 rounded-ey-lg">
-                      <h4 className="font-medium text-ey-black mb-2">
-                        Ratio d'engagement
-                      </h4>
-                      <div className="text-lg font-bold text-ey-yellow">
-                        {followCounts.followersCount > 0 
-                          ? Math.round((followCounts.followingCount / followCounts.followersCount) * 100)
-                          : 0
-                        }%
-                      </div>
-                      <p className="text-sm text-ey-gray-600 mt-1">
-                        Taux d'abonnements par rapport aux abonnés
-                      </p>
-                    </div>
-
-                    {/* Actions rapides */}
-                    <div className="flex gap-2">
-                      <button
-                        onClick={openFollowersModal}
-                        className="btn-ey-outline flex-1 text-sm"
-                      >
-                        Voir les abonnés
-                      </button>
-                      <button
-                        onClick={openFollowingModal}
-                        className="btn-ey-outline flex-1 text-sm"
-                      >
-                        Voir les abonnements
-                      </button>
-                    </div>
-                  </div>
                 </CardContent>
               </Card>
 
@@ -1068,16 +719,6 @@ export default function ProfileClient({ user, eventsData, isOwnProfile }: Profil
                             <p className="text-sm text-ey-gray-600 mt-1">
                               {new Date(event.date).toLocaleDateString('fr-FR')} • {event.location}
                             </p>
-                            <div className="flex items-center gap-4 mt-2 text-xs text-ey-gray-500">
-                              <span className="flex items-center gap-1">
-                                <Users size={12} />
-                                {event.participantCount} participants
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Heart size={12} />
-                                {event.interestedCount} intéressés
-                              </span>
-                            </div>
                           </Link>
                         </div>
                       ))}
@@ -1196,142 +837,6 @@ export default function ProfileClient({ user, eventsData, isOwnProfile }: Profil
 
         </Tabs>
       </div>
-
-      {/* Modals des followers/following - CORRIGES */}
-      <AnimatePresence>
-        {followersModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-ey-white rounded-ey-2xl shadow-ey-2xl max-w-md w-full max-h-[80vh] overflow-hidden"
-            >
-              <div className="p-6 border-b border-ey-gray-200 bg-gradient-ey-primary">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-xl font-bold text-ey-black">
-                    Abonnés ({followCounts.followersCount})
-                  </h3>
-                  <button
-                    onClick={() => setFollowersModal(false)}
-                    className="p-2 hover:bg-ey-black/10 rounded-ey-lg transition-colors"
-                  >
-                    <X className="w-6 h-6 text-ey-black" />
-                  </button>
-                </div>
-              </div>
-              
-              <div className="p-6 overflow-y-auto max-h-96">
-                {modalLoading ? (
-                  <div className="text-center py-8">
-                    <RefreshCw className="w-8 h-8 animate-spin text-ey-accent-blue mx-auto mb-3" />
-                    <p className="text-ey-gray-600">Chargement des abonnés...</p>
-                  </div>
-                ) : followers.length > 0 ? (
-                  <div className="space-y-4">
-                    {followers.map((follower) => (
-                      <div key={follower.id} className="flex items-center gap-3 p-3 hover:bg-ey-gray-50 rounded-ey-lg">
-                        <div className="w-10 h-10 bg-gradient-ey-primary rounded-full flex items-center justify-center">
-                          <span className="text-ey-black font-bold text-sm">
-                            {follower.fullName?.charAt(0) || '?'}
-                          </span>
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-medium text-ey-black text-sm">
-                            {follower.fullName || 'Utilisateur'}
-                          </p>
-                          <p className="text-xs text-ey-gray-600">
-                            {follower.department || 'Département non spécifié'}
-                          </p>
-                        </div>
-                        <Link
-                          href={`/EyEngage/profile/${follower.id}`}
-                          className="btn-ey-outline btn-sm"
-                        >
-                          Voir
-                        </Link>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <Users className="w-12 h-12 text-ey-gray-300 mx-auto mb-3" />
-                    <p className="text-ey-gray-500">Aucun abonné pour le moment</p>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Modal Following */}
-      <AnimatePresence>
-        {followingModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-ey-white rounded-ey-2xl shadow-ey-2xl max-w-md w-full max-h-[80vh] overflow-hidden"
-            >
-              <div className="p-6 border-b border-ey-gray-200 bg-gradient-ey-secondary">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-xl font-bold text-ey-white">
-                    Abonnements ({followCounts.followingCount})
-                  </h3>
-                  <button
-                    onClick={() => setFollowingModal(false)}
-                    className="p-2 hover:bg-ey-white/10 rounded-ey-lg transition-colors"
-                  >
-                    <X className="w-6 h-6 text-ey-white" />
-                  </button>
-                </div>
-              </div>
-              
-              <div className="p-6 overflow-y-auto max-h-96">
-                {modalLoading ? (
-                  <div className="text-center py-8">
-                    <RefreshCw className="w-8 h-8 animate-spin text-ey-accent-blue mx-auto mb-3" />
-                    <p className="text-ey-gray-600">Chargement des abonnements...</p>
-                  </div>
-                ) : following.length > 0 ? (
-                  <div className="space-y-4">
-                    {following.map((followedUser) => (
-                      <div key={followedUser.id} className="flex items-center gap-3 p-3 hover:bg-ey-gray-50 rounded-ey-lg">
-                        <div className="w-10 h-10 bg-gradient-ey-primary rounded-full flex items-center justify-center">
-                          <span className="text-ey-black font-bold text-sm">
-                            {followedUser.fullName?.charAt(0) || '?'}
-                          </span>
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-medium text-ey-black text-sm">
-                            {followedUser.fullName || 'Utilisateur'}
-                          </p>
-                          <p className="text-xs text-ey-gray-600">
-                            {followedUser.department || 'Département non spécifié'}
-                          </p>
-                        </div>
-                        <Link
-                          href={`/EyEngage/profile/${followedUser.id}`}
-                          className="btn-ey-outline btn-sm"
-                        >
-                          Voir
-                        </Link>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <Users className="w-12 h-12 text-ey-gray-300 mx-auto mb-3" />
-                    <p className="text-ey-gray-500">Aucun abonnement pour le moment</p>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* Modals de modification - inchangés mais seulement pour son propre profil */}
       {isOwnProfile && (

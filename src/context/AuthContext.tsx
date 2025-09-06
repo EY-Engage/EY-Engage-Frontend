@@ -5,8 +5,6 @@ import { useRouter, usePathname } from 'next/navigation';
 import { getCookie } from '@/lib/coockies';
 import { UserDto } from '@/dtos/user/UserDto';
 
-
-
 interface AuthState {
   user: UserDto | null;
   email: string;
@@ -15,7 +13,9 @@ interface AuthState {
   isFirstLogin: boolean;
   isLoading: boolean;
   isAuthenticated: boolean;
+  token: string | null; // AJOUT CRITIQUE
 }
+
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
@@ -34,18 +34,19 @@ interface AuthResponse {
   isFirstLogin?: boolean;
   needsPasswordChange?: boolean;
   message?: string;
+  accessToken?: string; // ✅ AJOUT DU TOKEN DANS LA RÉPONSE
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// Fonction API simplifiée pour éviter les dépendances circulaires
+// Fonction API simplifiée
 const apiRequest = async <T,>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> => {
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
   if (!backendUrl) throw new Error("NEXT_PUBLIC_BACKEND_URL not configured");
-  
+
   const config: RequestInit = {
     ...options,
     credentials: 'include',
@@ -70,10 +71,16 @@ const apiRequest = async <T,>(
   return await response.json();
 };
 
+// ✅ FONCTION POUR RÉCUPÉRER LE TOKEN DEPUIS LES COOKIES
+const getTokenFromCookies = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  return getCookie('ey-session') || null;
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  
+
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
     email: '',
@@ -81,7 +88,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isActive: false,
     isFirstLogin: false,
     isLoading: true,
-    isAuthenticated: false
+    isAuthenticated: false,
+    token: null, // ✅ INITIALISATION DU TOKEN
   });
 
   // Refs pour éviter les multiples appels
@@ -90,26 +98,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isRefreshingRef = useRef(false);
   const logoutInProgressRef = useRef(false);
 
-  // Fonction pour récupérer le token CSRF
-  const fetchCsrfToken = async (): Promise<void> => {
-    try {
-      await apiRequest('/api/auth/csrf-token', {
-        method: 'GET'
-      });
-      console.log('CSRF token fetched successfully');
-    } catch (error) {
-      console.error('Failed to fetch CSRF token:', error);
-    }
-  };
+  // ✅ FONCTION POUR METTRE À JOUR LE TOKEN
+  const updateToken = useCallback(() => {
+    const newToken = getTokenFromCookies();
+    setAuthState(prev => ({ ...prev, token: newToken }));
+    return newToken;
+  }, []);
 
-  // Fonction logout sans dépendances circulaires
+  // ✅ SURVEILLER LES CHANGEMENTS DE TOKEN
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const currentToken = getTokenFromCookies();
+      setAuthState(prev => {
+        if (prev.token !== currentToken) {
+          return { ...prev, token: currentToken };
+        }
+        return prev;
+      });
+    }, 1000); // Vérifier toutes les secondes
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fonction logout
   const logout = useCallback(async () => {
-    // Éviter les appels multiples de logout
     if (logoutInProgressRef.current) return;
     logoutInProgressRef.current = true;
 
     try {
-      // Appel API de logout sans attendre la réponse pour éviter les blocages
+      // Appel API de logout
       fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/logout`, {
         method: 'POST',
         credentials: 'include',
@@ -125,52 +142,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isActive: false,
         isFirstLogin: false,
         isLoading: false,
-        isAuthenticated: false
+        isAuthenticated: false,
+        token: null, // ✅ RESET DU TOKEN
       });
-      
+
       // Reset des flags
       hasInitializedRef.current = false;
       isValidatingRef.current = false;
       isRefreshingRef.current = false;
-      
+
       // Supprimer les cookies côté client
       document.cookie = 'ey-session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
       document.cookie = 'ey-refresh=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
       document.cookie = 'csrf-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-      
-      // Redirection seulement si pas déjà sur la page de login
+
+      // Redirection
       if (!pathname?.startsWith('/auth')) {
         router.push('/auth');
       }
-      
+
       logoutInProgressRef.current = false;
     }
   }, [pathname, router]);
 
-  // Fonction pour rafraîchir le token SANS déclencher de logout automatique
+  // Fonction pour rafraîchir le token
   const refreshToken = useCallback(async (): Promise<boolean> => {
-    // Éviter les refresh multiples simultanés
     if (isRefreshingRef.current) return false;
-    
+
     const refreshTokenValue = getCookie('ey-refresh');
     if (!refreshTokenValue) {
-      return false; // Pas de token, pas de refresh
+      return false;
     }
 
     isRefreshingRef.current = true;
 
     try {
-      // Tentative de refresh
-      await apiRequest('/api/auth/refresh', {
+      const refreshResponse = await apiRequest<AuthResponse>('/api/auth/refresh', {
         method: 'POST',
         body: JSON.stringify({ refreshToken: refreshTokenValue })
       });
 
-      // Si le refresh réussit, valider la session
+      // ✅ RÉCUPÉRER LE NOUVEAU TOKEN DEPUIS LES COOKIES APRÈS REFRESH
+      const newToken = getTokenFromCookies();
+
+      // Valider la session
       const data = await apiRequest<AuthResponse>('/api/auth/validate', {
         method: 'GET'
       });
-      
+
       setAuthState({
         user: data.user || null,
         email: data.email || '',
@@ -178,9 +197,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isActive: data.isActive || false,
         isFirstLogin: data.isFirstLogin || false,
         isLoading: false,
-        isAuthenticated: true
+        isAuthenticated: true,
+        token: newToken, // ✅ MISE À JOUR DU TOKEN
       });
-      
+
       isRefreshingRef.current = false;
       return true;
     } catch (error) {
@@ -198,26 +218,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Pages publiques - pas de validation nécessaire
       const authPaths = ['/auth', '/auth/change-password', '/auth/forgot-password', '/auth/reset-password'];
       if (authPaths.some(path => pathname?.startsWith(path))) {
-        setAuthState(prev => ({ ...prev, isLoading: false }));
+        const token = getTokenFromCookies();
+        setAuthState(prev => ({ ...prev, isLoading: false, token }));
         hasInitializedRef.current = true;
         return;
       }
 
       // Éviter les validations multiples
       if (isValidatingRef.current || hasInitializedRef.current) {
-        setAuthState(prev => ({ ...prev, isLoading: false }));
+        const token = getTokenFromCookies();
+        setAuthState(prev => ({ ...prev, isLoading: false, token }));
         return;
       }
-      
+
       isValidatingRef.current = true;
-      
+
       try {
         const data = await apiRequest<AuthResponse>('/api/auth/validate', {
           method: 'GET'
         });
-        
+
         if (!isMounted) return;
-        
+
+        // ✅ RÉCUPÉRER LE TOKEN APRÈS VALIDATION
+        const token = getTokenFromCookies();
+
         setAuthState({
           user: data.user || null,
           email: data.email || '',
@@ -225,16 +250,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           isActive: data.isActive || false,
           isFirstLogin: data.isFirstLogin || false,
           isLoading: false,
-          isAuthenticated: true
+          isAuthenticated: true,
+          token, // ✅ INCLURE LE TOKEN
         });
-        
+
         hasInitializedRef.current = true;
       } catch (error) {
         if (!isMounted) return;
-        
-        // Session invalide - essayer de refresh UNE SEULE FOIS
+
+        // Session invalide - essayer de refresh
         const refreshSuccess = await refreshToken();
-        
+
         if (!refreshSuccess) {
           setAuthState({
             user: null,
@@ -243,15 +269,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             isActive: false,
             isFirstLogin: false,
             isLoading: false,
-            isAuthenticated: false
+            isAuthenticated: false,
+            token: null, // ✅ RESET DU TOKEN
           });
 
-          // Redirection vers login seulement si nécessaire
           if (!authPaths.some(path => pathname?.startsWith(path))) {
             router.push('/auth');
           }
         }
-        
+
         hasInitializedRef.current = true;
       } finally {
         if (isMounted) {
@@ -260,7 +286,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    // Exécuter la validation seulement au premier montage
     if (!hasInitializedRef.current) {
       validateSession();
     }
@@ -270,63 +295,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [pathname, router, refreshToken]);
 
-  // Intercepteur global pour les erreurs 401
+  // Rafraîchissement périodique du token
   useEffect(() => {
-    const handleUnauthorized = async (response: Response, url: string, init?: RequestInit): Promise<Response> => {
-      // Ne pas intercepter les appels d'auth eux-mêmes
-      if (url.includes('/auth/')) {
-        return response;
+    if (!authState.isAuthenticated) return;
+
+    const refreshInterval = setInterval(async () => {
+      try {
+        await refreshToken();
+        localStorage.setItem('lastTokenRefresh', Date.now().toString());
+      } catch (error) {
+        logout();
       }
+    }, 14 * 60 * 1000); // 14 minutes
 
-      if (response.status === 401 && !isRefreshingRef.current) {
-        const refreshSuccess = await refreshToken();
-        
-        if (refreshSuccess && init) {
-          // Rejouer la requête originale
-          return fetch(url, init);
-        } else {
-          // Refresh échoué - logout
-          await logout();
-        }
-      }
-      
-      return response;
-    };
-
-    // Wrapper pour fetch
-    const originalFetch = window.fetch;
-    window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-      const response = await originalFetch(input, init);
-      
-      if (response.status === 401) {
-        const url = typeof input === 'string' ? input : input.toString();
-        return handleUnauthorized(response, url, init);
-      }
-      
-      return response;
-    };
-
-    return () => {
-      window.fetch = originalFetch;
-    };
-  }, [refreshToken, logout]);
-
-  // Rafraîchissement périodique du token (toutes les 10 minutes)
-useEffect(() => {
-  if (!authState.isAuthenticated) return;
-
-  const refreshInterval = setInterval(async () => {
-    try {
-      await refreshToken();
-      // Mettre à jour le timestamp du dernier rafraîchissement
-      localStorage.setItem('lastTokenRefresh', Date.now().toString());
-    } catch (error) {
-      logout();
-    }
-  }, 14 * 60 * 1000); // 14 minutes < durée du token
-
-  return () => clearInterval(refreshInterval);
-}, [authState.isAuthenticated]);
+    return () => clearInterval(refreshInterval);
+  }, [authState.isAuthenticated, refreshToken, logout]);
 
   const login = async (email: string, password: string) => {
     try {
@@ -337,6 +320,9 @@ useEffect(() => {
         body: JSON.stringify({ email, password })
       });
 
+      // ✅ RÉCUPÉRER LE TOKEN APRÈS LOGIN
+      const token = getTokenFromCookies();
+
       if (data.needsPasswordChange) {
         setAuthState({
           user: null,
@@ -345,7 +331,8 @@ useEffect(() => {
           isActive: data.isActive || false,
           isFirstLogin: data.isFirstLogin || false,
           isLoading: false,
-          isAuthenticated: false
+          isAuthenticated: false,
+          token, // ✅ INCLURE LE TOKEN MÊME EN CAS DE CHANGEMENT REQUIS
         });
         router.push('/auth/change-password');
         return;
@@ -353,46 +340,45 @@ useEffect(() => {
 
       // Connexion réussie
       setAuthState({
-        user: data.user || { 
-          id: data.id || '', 
-          email: data.email || email, 
-          fullName: data.fullName || '' 
+        user: data.user || {
+          id: data.id || '',
+          email: data.email || email,
+          fullName: data.fullName || ''
         },
         email: data.email || email,
         roles: data.roles || [],
         isActive: data.isActive !== undefined ? data.isActive : true,
         isFirstLogin: data.isFirstLogin || false,
         isLoading: false,
-        isAuthenticated: true
+        isAuthenticated: true,
+        token, // ✅ INCLURE LE TOKEN
       });
 
       hasInitializedRef.current = true;
-
-      // Générer le token CSRF après connexion réussie
-      await fetchCsrfToken();
 
       // Redirection selon le rôle
       const isSupervisor = data.roles?.some((role: string) => 
         ['SuperAdmin', 'Admin', 'AgentEY'].includes(role)
       );
-      
+
       router.push(isSupervisor ? '/EyEngage/SupervisorDashboard' : '/EyEngage/EmployeeDashboard');
 
     } catch (error: any) {
       setAuthState(prev => ({
         ...prev,
         isLoading: false,
-        isAuthenticated: false
+        isAuthenticated: false,
+        token: null, // ✅ RESET DU TOKEN EN CAS D'ERREUR
       }));
-      
+
       throw new Error(error.message || 'Erreur de connexion');
     }
   };
 
   const changePassword = async (
-    email: string, 
-    currentPassword: string, 
-    newPassword: string, 
+    email: string,
+    currentPassword: string,
+    newPassword: string,
     confirmPassword: string
   ) => {
     try {
@@ -406,18 +392,22 @@ useEffect(() => {
         })
       });
 
+      // ✅ RÉCUPÉRER LE TOKEN APRÈS CHANGEMENT DE MOT DE PASSE
+      const token = getTokenFromCookies();
+
       setAuthState({
-        user: data.user || { 
-          id: data.id || '', 
-          email: data.email || email, 
-          fullName: data.fullName || '' 
+        user: data.user || {
+          id: data.id || '',
+          email: data.email || email,
+          fullName: data.fullName || ''
         },
         email: data.email || email,
         roles: data.roles || [],
         isActive: true,
         isFirstLogin: false,
         isLoading: false,
-        isAuthenticated: true
+        isAuthenticated: true,
+        token, // ✅ INCLURE LE TOKEN
       });
 
       hasInitializedRef.current = true;
@@ -425,7 +415,7 @@ useEffect(() => {
       const isSupervisor = data.roles?.some((role: string) => 
         ['SuperAdmin', 'Admin', 'AgentEY'].includes(role)
       );
-      
+
       router.push(isSupervisor ? '/EyEngage/SupervisorDashboard' : '/EyEngage/EmployeeDashboard');
 
     } catch (error: any) {
@@ -433,8 +423,30 @@ useEffect(() => {
     }
   };
 
+  // ✅ EFFET POUR SURVEILLER LES CHANGEMENTS DE TOKEN EN TEMPS RÉEL
+  useEffect(() => {
+    const checkToken = () => {
+      const currentToken = getTokenFromCookies();
+      setAuthState(prev => {
+        if (prev.token !== currentToken) {
+          console.log('Token updated:', currentToken ? 'Present' : 'Absent');
+          return { ...prev, token: currentToken };
+        }
+        return prev;
+      });
+    };
+
+    // Vérification initiale
+    checkToken();
+
+    // Surveiller les changements de cookies
+    const interval = setInterval(checkToken, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <AuthContext.Provider 
+    <AuthContext.Provider
       value={{
         ...authState,
         login,

@@ -14,7 +14,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { 
   PostDto, CreatePostDto, FeedQueryDto, ReactionType, ContentType,
-  CreateReactionDto, CreateCommentDto, TrendingDto, FollowDto, SharePostDto,
+  CreateReactionDto, CreateCommentDto, TrendingDto, SharePostDto,
   SearchResultDto, SearchQueryDto, Department
 } from '@/types/types';
 import toast from 'react-hot-toast';
@@ -26,7 +26,6 @@ import UpdatePostModal from './UpdatePostModal';
 import SharePostModal from './SharePostModal';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 import ReactionsModal from './ReactionsModal';
-import FollowSuggestions from './FollowSuggestions';
 import PostCard from './PostCard';
 import TrendingPanel from './TrendingSection';
 
@@ -52,21 +51,12 @@ interface AdvancedSearchOptions {
   page?: number;
   limit?: number;
 }
-
-interface SearchSuggestion {
-  type: 'content' | 'author' | 'tag';
-  text: string;
-  count: number;
-  highlighted: string;
-}
-
 export default function EmployeeSocialDashboard() {
    const { user, roles } = useAuth()
   
   // États principaux
   const [posts, setPosts] = useState<PostDto[]>([]);
   const [trending, setTrending] = useState<TrendingDto | null>(null);
-  const [followSuggestions, setFollowSuggestions] = useState<FollowDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -76,8 +66,6 @@ export default function EmployeeSocialDashboard() {
   const [searchMode, setSearchMode] = useState<'feed' | 'simple' | 'advanced'>('feed');
   const [searchResults, setSearchResults] = useState<SearchResultDto | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [searchSuggestions, setSearchSuggestions] = useState<SearchSuggestion[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
   const [highlightedPosts, setHighlightedPosts] = useState<PostDto[]>([]);
   
   // États des filtres et recherche simple
@@ -89,7 +77,6 @@ export default function EmployeeSocialDashboard() {
 
   const [searchInput, setSearchInput] = useState('');
   const searchTimeoutRef = useRef<number | null>(null);
-  const suggestionsTimeoutRef = useRef<number | null>(null);
 
   // États de recherche avancée
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
@@ -151,27 +138,6 @@ export default function EmployeeSocialDashboard() {
   }, []);
 
   /**
-   * Charger les suggestions de recherche en temps réel
-   */
-  const loadSearchSuggestions = useCallback(async (query: string) => {
-    if (!query || query.length < 2) {
-      setSearchSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    try {
-      const { suggestions } = await postService.getSearchSuggestions(query, 5);
-      setSearchSuggestions(suggestions);
-      setShowSuggestions(suggestions.length > 0);
-    } catch (error) {
-      console.error('Erreur suggestions:', error);
-      setSearchSuggestions([]);
-      setShowSuggestions(false);
-    }
-  }, []);
-
-  /**
    * Recherche avancée
    */
   const performAdvancedSearch = useCallback(async (options: AdvancedSearchOptions) => {
@@ -214,68 +180,6 @@ export default function EmployeeSocialDashboard() {
     }
   }, []);
 
-  // Gestion recherche avec suggestions en temps réel
-  const handleSearchChange = (value: string) => {
-    setSearchInput(value);
-
-    // Nettoyer les timeouts précédents
-    if (searchTimeoutRef.current) {
-      window.clearTimeout(searchTimeoutRef.current);
-    }
-    if (suggestionsTimeoutRef.current) {
-      window.clearTimeout(suggestionsTimeoutRef.current);
-    }
-
-    if (!value.trim()) {
-      setSearchMode('feed');
-      setSearchResults(null);
-      setHighlightedPosts([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    // Suggestions immédiates (300ms)
-    const suggestionsId = window.setTimeout(() => {
-      loadSearchSuggestions(value);
-    }, 300);
-    suggestionsTimeoutRef.current = suggestionsId as unknown as number;
-
-    // Recherche complète avec debounce (600ms)
-    const searchId = window.setTimeout(() => {
-      performSimpleSearch(value);
-    }, 600);
-    searchTimeoutRef.current = searchId as unknown as number;
-  };
-
-  const handleManualSearch = () => {
-    // Nettoyer les timeouts
-    if (searchTimeoutRef.current) {
-      window.clearTimeout(searchTimeoutRef.current);
-      searchTimeoutRef.current = null;
-    }
-    if (suggestionsTimeoutRef.current) {
-      window.clearTimeout(suggestionsTimeoutRef.current);
-      suggestionsTimeoutRef.current = null;
-    }
-    
-    setShowSuggestions(false);
-    
-    if (searchInput.trim()) {
-      performSimpleSearch(searchInput);
-    } else {
-      setSearchMode('feed');
-      setSearchResults(null);
-      setHighlightedPosts([]);
-    }
-  };
-
-  // Sélectionner une suggestion
-  const handleSuggestionSelect = (suggestion: SearchSuggestion) => {
-    setSearchInput(suggestion.text);
-    setShowSuggestions(false);
-    performSimpleSearch(suggestion.text);
-  };
-
   // Charger les tendances
   const loadTrending = useCallback(async () => {
     try {
@@ -283,16 +187,6 @@ export default function EmployeeSocialDashboard() {
       setTrending(trendingData);
     } catch (error) {
       console.error('Erreur chargement tendances:', error);
-    }
-  }, []);
-
-  // Charger les suggestions de suivi
-  const loadFollowSuggestions = useCallback(async () => {
-    try {
-      const suggestions = await followService.getFollowSuggestions(5);
-      setFollowSuggestions(suggestions);
-    } catch (error) {
-      console.error('Erreur suggestions:', error);
     }
   }, []);
 
@@ -329,7 +223,6 @@ export default function EmployeeSocialDashboard() {
     if (user) {
       fetchFeed(feedQuery, false);
       loadTrending();
-      loadFollowSuggestions();
       loadBookmarkedPosts();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -375,7 +268,6 @@ export default function EmployeeSocialDashboard() {
     setShowAdvancedSearch(false);
     setSearchResults(null);
     setHighlightedPosts([]);
-    setShowSuggestions(false);
     setSearchMode('feed');
     fetchFeed(newQuery, false);
   };
@@ -419,9 +311,8 @@ export default function EmployeeSocialDashboard() {
       await performAdvancedSearch({ ...advancedOptions, page: 1 });
     }
     await loadTrending();
-    await loadFollowSuggestions();
     setRefreshing(false);
-  }, [searchMode, feedQuery, searchInput, advancedOptions, fetchFeed, performSimpleSearch, performAdvancedSearch, loadTrending, loadFollowSuggestions]);
+  }, [searchMode, feedQuery, searchInput, advancedOptions, fetchFeed, performSimpleSearch, performAdvancedSearch, loadTrending]);
 
   // Gérer la recherche avancée
   const handleAdvancedSearch = () => {
@@ -649,7 +540,6 @@ const handleUnfollow = async (userId: string) => {
       } : null);
     }
     
-    await loadFollowSuggestions();
     toast.success('Utilisateur suivi avec succès !');
     console.log('=== FIN handleFollow (succès) ===');
     
@@ -699,29 +589,6 @@ const handleUnfollow = async (userId: string) => {
     setShowBookmarksModal(true);
   };
 
-  // Cleanup timeouts
-  useEffect(() => {
-    return () => {
-      if (searchTimeoutRef.current) {
-        window.clearTimeout(searchTimeoutRef.current);
-      }
-      if (suggestionsTimeoutRef.current) {
-        window.clearTimeout(suggestionsTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Fermer les suggestions quand on clique ailleurs
-  useEffect(() => {
-    const handleClickOutside = () => {
-      setShowSuggestions(false);
-    };
-    
-    if (showSuggestions) {
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
-    }
-  }, [showSuggestions]);
 
   if (loading) {
     return (
@@ -746,12 +613,7 @@ const handleUnfollow = async (userId: string) => {
           
           {/* Sidebar gauche - Tendances */}
           <div className="lg:col-span-1 space-y-6">
-            <TrendingPanel trending={trending} onRefresh={loadTrending} />
-            <FollowSuggestions 
-              suggestions={followSuggestions} 
-              onFollow={handleFollow}
-              onRefresh={loadFollowSuggestions}
-            />
+            <TrendingPanel trending={trending} onRefresh={loadTrending} />      
           </div>
 
           {/* Contenu principal */}
@@ -791,127 +653,6 @@ const handleUnfollow = async (userId: string) => {
                     Nouvelle publication
                   </button>
                 </div>
-              </div>
-
-              {/* Barre de recherche avec suggestions dynamiques */}
-              <div className="relative mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-ey-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Rechercher par contenu..."
-                      value={searchInput}
-                      onChange={(e) => handleSearchChange(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleManualSearch()}
-                      onFocus={() => searchSuggestions.length > 0 && setShowSuggestions(true)}
-                      className="input-ey pl-10 pr-12 py-3 text-base focus:ring-2 focus:ring-ey-yellow/20 transition-all"
-                    />
-                    {searchInput && (
-                      <button
-                        onClick={() => {
-                          setSearchInput('');
-                          setSearchMode('feed');
-                          setSearchResults(null);
-                          setHighlightedPosts([]);
-                          setShowSuggestions(false);
-                        }}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-ey-gray-400 hover:text-ey-gray-600 transition-colors"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                    )}
-                    
-                    {searchLoading && (
-                      <div className="absolute right-10 top-1/2 transform -translate-y-1/2">
-                        <RefreshCw className="w-4 h-4 animate-spin text-ey-accent-blue" />
-                      </div>
-                    )}
-
-                    {/* Suggestions dynamiques */}
-                    <AnimatePresence>
-                      {showSuggestions && searchSuggestions.length > 0 && (
-                        <motion.div
-                          initial={{ opacity: 0, y: -10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          className="absolute top-full left-0 right-0 mt-2 bg-ey-white border border-ey-gray-200 rounded-ey-lg shadow-ey-xl z-50 overflow-hidden"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <div className="py-2">
-                            {searchSuggestions.map((suggestion, index) => (
-                              <button
-                                key={index}
-                                onClick={() => handleSuggestionSelect(suggestion)}
-                                className="w-full px-4 py-3 text-left hover:bg-ey-gray-50 transition-colors group"
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div className="flex-shrink-0">
-                                    {suggestion.type === 'content' && <MessageSquare className="w-4 h-4 text-ey-accent-blue" />}
-                                    {suggestion.type === 'author' && <User className="w-4 h-4 text-ey-green" />}
-                                    {suggestion.type === 'tag' && <Hash className="w-4 h-4 text-ey-yellow" />}
-                                  </div>
-                                  <div className="flex-1">
-                                    <div 
-                                      className="text-sm text-ey-black group-hover:text-ey-accent-blue"
-                                      dangerouslySetInnerHTML={{ __html: suggestion.highlighted }}
-                                    />
-                                    <div className="text-xs text-ey-gray-500">
-                                      {suggestion.count} résultat{suggestion.count > 1 ? 's' : ''}
-                                    </div>
-                                  </div>
-                                  <ChevronRight className="w-4 h-4 text-ey-gray-400 group-hover:text-ey-accent-blue" />
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                  
-                  <button
-                    onClick={handleManualSearch}
-                    disabled={searchLoading}
-                    className="btn-ey-primary px-6 py-3 flex items-center gap-2"
-                  >
-                    {searchLoading ? (
-                      <RefreshCw className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <Search className="w-5 h-5" />
-                    )}
-                    Rechercher
-                  </button>
-
-                  <button
-                    onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}
-                    className={`btn-ey-outline px-4 py-3 flex items-center gap-2 transition-all ${showAdvancedSearch ? 'bg-ey-yellow/20 border-ey-yellow text-ey-black' : ''}`}
-                  >
-                    <Sliders className="w-5 h-5" />
-                    Avancée
-                    <ChevronDown className={`w-4 h-4 transition-transform ${showAdvancedSearch ? 'rotate-180' : ''}`} />
-                  </button>
-                </div>
-
-                {/* Indicateur du mode de recherche avec design EY */}
-                {searchMode !== 'feed' && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center gap-2 mt-3 text-sm"
-                  >
-                    <div className="flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-ey-accent-blue/20 to-ey-green/20 text-ey-accent-blue rounded-full border border-ey-accent-blue/30">
-                      <Target className="w-4 h-4" />
-                      {searchMode === 'simple' ? 'Recherche par contenu' : 'Recherche avancée'}
-                    </div>
-                    <button
-                      onClick={resetFilters}
-                      className="text-ey-gray-500 hover:text-ey-accent-blue transition-colors underline"
-                    >
-                      Retour au fil d'actualité
-                    </button>
-                  </motion.div>
-                )}
               </div>
 
               {/* Recherche avancée */}
@@ -1134,13 +875,6 @@ const handleUnfollow = async (userId: string) => {
                     >
                       <TrendingUp className="w-4 h-4 mr-1" />
                       Populaire
-                    </button>
-                    <button
-                      onClick={() => applyFilters({ followingOnly: !feedQuery.followingOnly })}
-                      className={`btn-filter ${feedQuery.followingOnly ? 'active' : ''}`}
-                    >
-                      <Users className="w-4 h-4 mr-1" />
-                      Mes abonnements
                     </button>
                     {/* BOUTON CORRIGÉ */}
                     <button
@@ -1383,14 +1117,7 @@ const handleUnfollow = async (userId: string) => {
                   <Sliders className="w-4 h-4" />
                   Recherche avancée
                 </button>
-                
-                <button
-                  onClick={() => applyFilters({ followingOnly: true })}
-                  className="w-full btn-ey-outline text-left flex items-center gap-2 hover:bg-gradient-to-r hover:from-ey-yellow/10 hover:to-ey-green/10"
-                >
-                  <Users className="w-4 h-4" />
-                  Mes abonnements
-                </button>
+
 
                 <button
                   onClick={handleShowBookmarks}

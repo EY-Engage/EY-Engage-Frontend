@@ -55,8 +55,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialData }) => {
   const [timeRange, setTimeRange] = useState('7days');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [quickStats, setQuickStats] = useState<QuickStat[]>([]);
-  const [notifications, setNotifications] = useState([]);
-
   const tabs = [
     { 
       id: 'overview', 
@@ -102,7 +100,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialData }) => {
       loadDashboardData();
     }
     loadQuickStats();
-    loadNotifications();
   }, [timeRange, activeTab]);
 
   const loadDashboardData = async () => {
@@ -163,21 +160,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialData }) => {
     }
   };
 
-  const loadNotifications = async () => {
-    try {
-      const data = await adminService.getAdminNotifications();
-      setNotifications(data.notifications || []);
-    } catch (error) {
-      console.error('Error loading notifications:', error);
-    }
-  };
-
   const handleRefreshAll = async () => {
     setIsLoading(true);
     await Promise.all([
       loadDashboardData(),
       loadQuickStats(),
-      loadNotifications()
     ]);
     setIsLoading(false);
   };
@@ -361,16 +348,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialData }) => {
                     placeholder="Recherche rapide..."
                     className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ey-yellow w-64"
                   />
-                </div>
-
-                {/* Notifications */}
-                <div className="relative">
-                  <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg relative">
-                    <Bell className="w-5 h-5" />
-                    {notifications.length > 0 && (
-                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
-                    )}
-                  </button>
                 </div>
 
                 {/* Actions rapides */}

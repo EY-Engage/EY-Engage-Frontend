@@ -606,22 +606,6 @@ const handleFollowClick = async () => {
                 <span className="text-sm text-ey-gray-600 bg-ey-gray-100 px-2 py-1 rounded-ey-md">
                   {post.authorDepartment || 'Non spécifié'}
                 </span>
-                
-          {!post.isFollowingAuthor && !isOwnPost && currentUser && (
-                  <>
-                    <span className="text-ey-gray-500">•</span>
-                    <button
-                      onClick={handleFollowClick}
-                      className={`text-sm font-medium transition-colors ${
-                        isFollowing 
-                          ? 'text-ey-gray-500 hover:text-ey-red' 
-                          : 'text-ey-accent-blue hover:text-ey-accent-blue-dark'
-                      }`}
-                    >
-                      {isFollowing ? 'Ne plus suivre' : 'Suivre'}
-                    </button>
-                  </>
-                )}
               </div>
               
               <div className="flex items-center gap-2 text-sm text-ey-gray-500 mt-1">
