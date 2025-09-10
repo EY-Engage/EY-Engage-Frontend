@@ -19,7 +19,6 @@ import {
 } from '@/types/types';
 import toast from 'react-hot-toast';
 import EnhancedLoading from '@/components/SkeletonLoader';
-import { followService } from '@/lib/services/social/followService';
 import { postService } from '@/lib/services/social/postService';
 import CreatePostModal from './CreatePost';
 import UpdatePostModal from './UpdatePostModal';

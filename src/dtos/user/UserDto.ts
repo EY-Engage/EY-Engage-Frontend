@@ -10,4 +10,5 @@ export interface UserDto {
   fonction: string;
   department: string;
   sector: string;
+  isActive?: boolean;
 }

@@ -1,7 +1,7 @@
-// lib/api-clientNest.ts
+// lib/api-client-nest.ts
 const getBackendUrl = () => {
   const url = process.env.NEXT_PUBLIC_NEST_BACKEND_URL;
-  if (!url) throw new Error("NEXT_PUBLIC_BACKEND_URL not configured");
+  if (!url) throw new Error("NEXT_PUBLIC_NEST_BACKEND_URL not configured");
   return url;
 };
 
@@ -17,7 +17,7 @@ export async function apiClient<T>(
   
   const config: RequestInit = {
     ...fetchOptions,
-    credentials: 'include', // CRUCIAL: Include cookies with every request
+    credentials: 'include',
     headers: {
       ...fetchOptions.headers,
     },
@@ -33,12 +33,16 @@ export async function apiClient<T>(
 
   const url = `${getBackendUrl()}${endpoint}`;
   
+  console.log(`🌐 API Call: ${fetchOptions.method || 'GET'} ${url}`);
+  if (fetchOptions.body && typeof fetchOptions.body === 'string') {
+    console.log('📤 Request body:', fetchOptions.body);
+  }
   try {
     const response = await fetch(url, config);
 
+    console.log(`📡 Response: ${response.status} ${response.statusText}`);
     // Handle 401 - Redirect to login
     if (response.status === 401 && requireAuth) {
-      // Clear any stored auth state
       if (typeof window !== 'undefined') {
         window.location.href = '/auth';
       }
@@ -48,6 +52,7 @@ export async function apiClient<T>(
     // Handle other errors
     if (!response.ok) {
       const errorText = await response.text();
+      console.error(`❌ API Error Response:`, errorText);
       throw new Error(errorText || `HTTP ${response.status}: ${response.statusText}`);
     }
 
@@ -57,7 +62,9 @@ export async function apiClient<T>(
       return {} as T;
     }
 
-    return await response.json();
+    const result = await response.json();
+    console.log(`✅ API Success:`, result);
+    return result;
   } catch (error) {
     console.error(`API Error [${endpoint}]:`, error);
     throw error;
@@ -66,25 +73,28 @@ export async function apiClient<T>(
 
 // Specific methods for common operations
 export const api = {
-  get: <T>(url: string) => apiClient<T>(url, { method: 'GET' }),
+  get: <T>(url: string, options?: FetchOptions) => apiClient<T>(url, { method: 'GET', ...options }),
   
-  post: <T>(url: string, data?: any) => 
+  post: <T>(url: string, data?: any, options?: FetchOptions) => 
     apiClient<T>(url, {
       method: 'POST',
       body: data instanceof FormData ? data : JSON.stringify(data),
+      ...options,
     }),
   
-  put: <T>(url: string, data?: any, p0?: { headers: { 'Content-Type': string; }; }) =>
+  put: <T>(url: string, data?: any, options?: FetchOptions) =>
     apiClient<T>(url, {
       method: 'PUT',
       body: data instanceof FormData ? data : JSON.stringify(data),
+      ...options,
     }),
   
-  delete: <T>(url: string) => apiClient<T>(url, { method: 'DELETE' }),
+  delete: <T>(url: string, options?: FetchOptions) => apiClient<T>(url, { method: 'DELETE', ...options }),
   
-  patch: <T>(url: string, data?: any) =>
+  patch: <T>(url: string, data?: any, options?: FetchOptions) =>
     apiClient<T>(url, {
       method: 'PATCH',
       body: JSON.stringify(data),
+      ...options,
     }),
 };
