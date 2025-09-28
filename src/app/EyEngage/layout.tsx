@@ -251,7 +251,7 @@ export default function ImprovedEyEngageLayout({ children }: ImprovedEyEngageLay
                 <div className="hidden sm:block">
                   <h1 className="text-xl font-bold text-ey-black">
                     {pathname?.includes('SupervisorDashboard') ? 'Administration' : 
-                     pathname?.includes('EmployeeDashboard') ? 'Tableau de bord' : 'EY Engage'}
+                     pathname?.includes('EmployeeDashboard') ? 'Espace Employé' : 'EY Engage'}
                   </h1>
                 </div>
               </div>

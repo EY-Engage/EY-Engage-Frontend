@@ -151,7 +151,13 @@
   .input-ey-success {
     @apply border-ey-green focus:border-ey-green focus:ring-ey-green/20;
   }
-  
+  .ey-logo {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.ey-logo:hover {
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
+}
   .select-ey {
     @apply w-full px-4 py-3 border-2 border-ey-gray-200 rounded-ey-lg 
            bg-ey-white text-ey-black
